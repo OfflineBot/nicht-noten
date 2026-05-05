@@ -1,0 +1,13 @@
+# SQLite databases (live data, never commit)
+*.db
+*.db-shm
+*.db-wal
+
+# Build artifacts
+/notendurchschnitt
+/dist/
+
+# Editor / OS
+.idea/
+.vscode/
+.DS_Store
