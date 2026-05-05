@@ -1,0 +1,16 @@
+services:
+  app:
+    build: .
+    image: notendurchschnitt:latest
+    container_name: notendurchschnitt
+    ports:
+      - "8080:8080"
+    volumes:
+      - nd-data:/data
+    restart: unless-stopped
+    environment:
+      ADDR: ":8080"
+      DB_PATH: "/data/data.db"
+
+volumes:
+  nd-data:
