@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"embed"
 	"encoding/hex"
+	"fmt"
 	"html/template"
 	"log"
 	"net/http"
@@ -54,6 +55,14 @@ func main() {
 			}
 			return v / total * 100
 		},
+		"add": func(a, b float64) float64 { return a + b },
+		"sub": func(a, b float64) float64 { return a - b },
+		"div": func(a, b float64) float64 {
+			if b == 0 {
+				return 0
+			}
+			return a / b
+		},
 	}
 	pageNames := []string{
 		"login.html",
@@ -86,6 +95,7 @@ func main() {
 	mux.HandleFunc("POST /klausur/new", app.requireAuth(app.handleKlausurCreate))
 	mux.HandleFunc("GET /klausur/{id}", app.requireAuth(app.handleKlausurShow))
 	mux.HandleFunc("POST /klausur/{id}/submit", app.requireAuth(app.handleKlausurSubmit))
+	mux.HandleFunc("POST /klausur/{id}/delete", app.requireAuth(app.handleKlausurDelete))
 
 	log.Printf("listening on %s", addr)
 	if err := http.ListenAndServe(addr, mux); err != nil {
@@ -380,9 +390,38 @@ func (a *App) handleKlausurShow(w http.ResponseWriter, r *http.Request) {
 		}
 		data["StdDev"] = stddev(pts, avg)
 		data["Histogram"] = histogram(pts, k.MaxPoints, 10)
+		data["Freq"] = buildFreqChart(pts, k.MaxPoints, parseStep(r.URL.Query().Get("bin")))
 	}
 
 	a.render(w, "klausur.html", data)
+}
+
+func (a *App) handleKlausurDelete(w http.ResponseWriter, r *http.Request) {
+	user := userFrom(r)
+	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+	if _, err := getKlausur(a.db, id); err != nil {
+		http.NotFound(w, r)
+		return
+	}
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "bad form", http.StatusBadRequest)
+		return
+	}
+	target := "/klausur/" + strconv.FormatInt(id, 10)
+	confirm := strings.TrimSpace(r.FormValue("confirm_username"))
+	if confirm != user.Username {
+		http.Redirect(w, r, target+"?err=Username+stimmt+nicht", http.StatusSeeOther)
+		return
+	}
+	if err := deleteKlausur(a.db, id); err != nil {
+		http.Redirect(w, r, target+"?err=L%C3%B6schen+fehlgeschlagen", http.StatusSeeOther)
+		return
+	}
+	http.Redirect(w, r, "/", http.StatusSeeOther)
 }
 
 func (a *App) handleKlausurSubmit(w http.ResponseWriter, r *http.Request) {
@@ -486,6 +525,190 @@ func sqrt(x float64) float64 {
 		z = (z + x/z) / 2
 	}
 	return z
+}
+
+type chartDot struct {
+	CX, CY  float64
+	Bin     float64
+	BinEnd  float64
+	Count   int
+}
+
+type chartTick struct {
+	Pos   float64
+	Label string
+}
+
+type freqChart struct {
+	Width, Height          float64
+	PadL, PadR, PadT, PadB float64
+	ChartW, ChartH         float64
+	BaseY                  float64
+	Step                   float64
+	StepOptions            []float64
+	LinePath               string
+	AreaPath               string
+	Dots                   []chartDot
+	YTicks                 []chartTick
+	XTicks                 []chartTick
+	MaxCount               int
+}
+
+func buildFreqChart(pts []float64, maxPts, step float64) freqChart {
+	if step <= 0 {
+		step = 5
+	}
+	nBins := int(maxPts/step) + 1
+	counts := make([]int, nBins)
+	for _, p := range pts {
+		idx := int(p / step)
+		if idx >= nBins {
+			idx = nBins - 1
+		}
+		if idx < 0 {
+			idx = 0
+		}
+		counts[idx]++
+	}
+	maxCount := 0
+	for _, c := range counts {
+		if c > maxCount {
+			maxCount = c
+		}
+	}
+
+	const w, h = 600.0, 240.0
+	const padL, padR, padT, padB = 42.0, 14.0, 28.0, 32.0
+	chartW := w - padL - padR
+	chartH := h - padT - padB
+	yMax := float64(maxCount)
+	if yMax < 1 {
+		yMax = 1
+	}
+
+	xPos := func(bin float64) float64 {
+		return padL + (bin/maxPts)*chartW
+	}
+	yPos := func(c float64) float64 {
+		return padT + (1-c/yMax)*chartH
+	}
+
+	dots := make([]chartDot, nBins)
+	raw := make([][2]float64, nBins)
+	for i := 0; i < nBins; i++ {
+		binStart := float64(i) * step
+		binEnd := binStart + step
+		if binEnd > maxPts {
+			binEnd = maxPts
+		}
+		x := xPos(binStart)
+		y := yPos(float64(counts[i]))
+		dots[i] = chartDot{CX: x, CY: y, Bin: binStart, BinEnd: binEnd, Count: counts[i]}
+		raw[i] = [2]float64{x, y}
+	}
+
+	line := smoothPath(raw, padT, padT+chartH)
+	area := ""
+	if nBins > 0 {
+		var b strings.Builder
+		b.WriteString(line)
+		fmt.Fprintf(&b, " L%.2f %.2f L%.2f %.2f Z", raw[nBins-1][0], padT+chartH, raw[0][0], padT+chartH)
+		area = b.String()
+	}
+
+	yTicks := []chartTick{{Pos: yPos(0), Label: "0"}}
+	if maxCount >= 2 {
+		mid := maxCount / 2
+		yTicks = append(yTicks, chartTick{Pos: yPos(float64(mid)), Label: strconv.Itoa(mid)})
+	}
+	yTicks = append(yTicks, chartTick{Pos: yPos(yMax), Label: strconv.Itoa(maxCount)})
+
+	xTicks := []chartTick{}
+	tickEvery := 1
+	for nBins/tickEvery > 8 {
+		tickEvery++
+	}
+	for i := 0; i < nBins; i += tickEvery {
+		binStart := float64(i) * step
+		xTicks = append(xTicks, chartTick{Pos: xPos(binStart), Label: strconv.FormatFloat(binStart, 'f', -1, 64)})
+	}
+	if (nBins-1)%tickEvery != 0 && nBins > 0 {
+		last := float64(nBins-1) * step
+		xTicks = append(xTicks, chartTick{Pos: xPos(last), Label: strconv.FormatFloat(last, 'f', -1, 64)})
+	}
+
+	return freqChart{
+		Width: w, Height: h,
+		PadL: padL, PadR: padR, PadT: padT, PadB: padB,
+		ChartW: chartW, ChartH: chartH,
+		BaseY:       padT + chartH,
+		Step:        step,
+		StepOptions: []float64{1, 2, 5, 10},
+		LinePath:    line,
+		AreaPath:    area,
+		Dots:        dots,
+		YTicks:      yTicks,
+		XTicks:      xTicks,
+		MaxCount:    maxCount,
+	}
+}
+
+// smoothPath builds a Catmull-Rom-to-Bezier path through the given points.
+// Control points are clamped to [yMin, yMax] so the curve doesn't undershoot
+// the chart area when going to/from zero counts.
+func smoothPath(pts [][2]float64, yMin, yMax float64) string {
+	n := len(pts)
+	if n == 0 {
+		return ""
+	}
+	if n == 1 {
+		return fmt.Sprintf("M%.2f %.2f", pts[0][0], pts[0][1])
+	}
+	clamp := func(y float64) float64 {
+		if y < yMin {
+			return yMin
+		}
+		if y > yMax {
+			return yMax
+		}
+		return y
+	}
+	var b strings.Builder
+	fmt.Fprintf(&b, "M%.2f %.2f", pts[0][0], pts[0][1])
+	for i := 0; i < n-1; i++ {
+		p1 := pts[i]
+		p2 := pts[i+1]
+		var p0, p3 [2]float64
+		if i == 0 {
+			p0 = p1
+		} else {
+			p0 = pts[i-1]
+		}
+		if i+2 < n {
+			p3 = pts[i+2]
+		} else {
+			p3 = p2
+		}
+		c1x := p1[0] + (p2[0]-p0[0])/6
+		c1y := clamp(p1[1] + (p2[1]-p0[1])/6)
+		c2x := p2[0] - (p3[0]-p1[0])/6
+		c2y := clamp(p2[1] - (p3[1]-p1[1])/6)
+		fmt.Fprintf(&b, " C%.2f %.2f %.2f %.2f %.2f %.2f", c1x, c1y, c2x, c2y, p2[0], p2[1])
+	}
+	return b.String()
+}
+
+func parseStep(s string) float64 {
+	v, err := strconv.ParseFloat(s, 64)
+	if err != nil {
+		return 5
+	}
+	for _, allowed := range []float64{1, 2, 5, 10} {
+		if v == allowed {
+			return v
+		}
+	}
+	return 5
 }
 
 func histogram(xs []float64, maxPts float64, bins int) []histBin {

@@ -77,4 +77,66 @@
         {{end}}
     </section>
 </div>
+
+{{if .Freq}}
+<section class="card chart-card">
+    <div class="chart-head">
+        <h2>Verteilungskurve</h2>
+        <form method="get" class="step-form">
+            <label>Schrittweite
+                <select name="bin" onchange="this.form.submit()">
+                    {{$cur := .Freq.Step}}
+                    {{range .Freq.StepOptions}}
+                        <option value="{{fmtFloat .}}"{{if eq . $cur}} selected{{end}}>{{fmtFloat .}}</option>
+                    {{end}}
+                </select>
+            </label>
+            <noscript><button class="btn btn-ghost" type="submit">OK</button></noscript>
+        </form>
+    </div>
+    <svg class="freq" viewBox="0 0 {{fmtFloat .Freq.Width}} {{fmtFloat .Freq.Height}}" preserveAspectRatio="none" role="img" aria-label="Verteilung der Abgaben">
+        <defs>
+            <linearGradient id="freqGrad" x1="0" x2="0" y1="0" y2="1">
+                <stop offset="0%" stop-color="var(--mauve)" stop-opacity="0.55"/>
+                <stop offset="100%" stop-color="var(--mauve)" stop-opacity="0.05"/>
+            </linearGradient>
+        </defs>
+        {{range .Freq.YTicks}}
+            <line class="grid" x1="{{fmtFloat $.Freq.PadL}}" x2="{{fmtFloat (add $.Freq.PadL $.Freq.ChartW)}}" y1="{{fmtFloat .Pos}}" y2="{{fmtFloat .Pos}}"/>
+            <text class="axis" x="{{fmtFloat (sub $.Freq.PadL 6)}}" y="{{fmtFloat .Pos}}" text-anchor="end" dominant-baseline="middle">{{.Label}}</text>
+        {{end}}
+        <path class="area" d="{{.Freq.AreaPath}}" fill="url(#freqGrad)"/>
+        <path class="line" d="{{.Freq.LinePath}}"/>
+        {{range .Freq.Dots}}
+            {{if gt .Count 0}}
+                <circle class="dot" cx="{{fmtFloat .CX}}" cy="{{fmtFloat .CY}}" r="3.5">
+                    <title>{{fmtFloat .Bin}}–{{fmtFloat .BinEnd}} Pkt: {{.Count}} Person{{if ne .Count 1}}en{{end}}</title>
+                </circle>
+            {{end}}
+        {{end}}
+        {{range .Freq.XTicks}}
+            <text class="axis" x="{{fmtFloat .Pos}}" y="{{fmtFloat (add $.Freq.BaseY 18)}}" text-anchor="middle">{{.Label}}</text>
+        {{end}}
+        <text class="axis-title" x="{{fmtFloat (add .Freq.PadL (div .Freq.ChartW 2))}}" y="{{fmtFloat (add .Freq.BaseY 30)}}" text-anchor="middle">Punkte (abgerundet auf {{fmtFloat .Freq.Step}})</text>
+    </svg>
+    <p class="muted small">Anzahl Personen pro Punkte-Bereich. Punktzahlen werden auf die gewählte Schrittweite <em>abgerundet</em>.</p>
+</section>
+{{end}}
+
+<section class="card danger-zone">
+    <details>
+        <summary>Klausur löschen</summary>
+        <p class="muted small">
+            Achtung: das Fach wird komplett gelöscht — inklusive aller {{.Count}} anonymen Abgaben und der Markierung, wer abgegeben hat. Das kann nicht rückgängig gemacht werden.
+        </p>
+        <form method="post" action="/klausur/{{.Klausur.ID}}/delete" class="stack">
+            <label>Bestätigung — gib deinen Username ein: <strong>{{.User.Username}}</strong>
+                <input type="text" name="confirm_username" autocomplete="off" required>
+            </label>
+            <div class="row">
+                <button class="btn btn-danger" type="submit">Endgültig löschen</button>
+            </div>
+        </form>
+    </details>
+</section>
 {{end}}

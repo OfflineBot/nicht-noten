@@ -172,6 +172,15 @@ input[type=text]:focus, input[type=password]:focus {
     color: var(--text);
     border-color: var(--surface2);
 }
+.btn-danger {
+    background: transparent;
+    color: var(--red);
+    border-color: var(--red);
+}
+.btn-danger:hover {
+    background: var(--red);
+    color: var(--base);
+}
 
 .header-row {
     display: flex;
@@ -323,3 +332,102 @@ input[type=text]:focus, input[type=password]:focus {
     text-align: right;
     font-variant-numeric: tabular-nums;
 }
+
+.chart-card { margin-top: 1rem; }
+.chart-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    margin-bottom: 0.5rem;
+}
+.chart-head h2 { margin: 0; }
+
+.step-form label {
+    flex-direction: row;
+    align-items: center;
+    gap: 0.5rem;
+    color: var(--subtext0);
+    font-size: 0.85rem;
+}
+.step-form select {
+    background: var(--base);
+    color: var(--text);
+    border: 1px solid var(--surface1);
+    border-radius: 6px;
+    padding: 0.3rem 0.5rem;
+    font: inherit;
+    cursor: pointer;
+}
+.step-form select:focus { outline: none; border-color: var(--mauve); }
+
+svg.freq {
+    width: 100%;
+    height: auto;
+    display: block;
+    background: var(--base);
+    border: 1px solid var(--surface0);
+    border-radius: 8px;
+    padding: 0.25rem;
+}
+svg.freq .grid {
+    stroke: var(--surface0);
+    stroke-width: 1;
+}
+svg.freq .axis {
+    fill: var(--subtext0);
+    font-size: 11px;
+    font-family: inherit;
+}
+svg.freq .axis-title {
+    fill: var(--subtext1);
+    font-size: 11px;
+    font-family: inherit;
+}
+svg.freq .line {
+    fill: none;
+    stroke: var(--mauve);
+    stroke-width: 2.2;
+    stroke-linejoin: round;
+    stroke-linecap: round;
+}
+svg.freq .area {
+    stroke: none;
+}
+svg.freq .dot {
+    fill: var(--mauve);
+    stroke: var(--mantle);
+    stroke-width: 1.5;
+    transition: r 100ms;
+}
+svg.freq .dot:hover {
+    fill: var(--lavender);
+    r: 5;
+}
+
+.danger-zone {
+    margin-top: 1rem;
+    border-color: rgba(243, 139, 168, 0.25);
+}
+.danger-zone summary {
+    cursor: pointer;
+    color: var(--red);
+    font-weight: 500;
+    list-style: none;
+    user-select: none;
+    padding: 0.25rem 0;
+}
+.danger-zone summary::-webkit-details-marker { display: none; }
+.danger-zone summary::before {
+    content: "▸ ";
+    display: inline-block;
+    transition: transform 120ms;
+}
+.danger-zone details[open] summary::before {
+    transform: rotate(90deg);
+}
+.danger-zone details[open] summary {
+    margin-bottom: 0.75rem;
+}
+.danger-zone p.muted { margin: 0 0 0.75rem 0; }

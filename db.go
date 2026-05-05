@@ -157,7 +157,7 @@ func countPunkte(db *sql.DB, klausurID int64) (int, error) {
 }
 
 func listPunkte(db *sql.DB, klausurID int64) ([]float64, error) {
-	rows, err := db.Query(`SELECT points FROM punkte WHERE klausur_id = ?`, klausurID)
+	rows, err := db.Query(`SELECT points FROM punkte WHERE klausur_id = ? ORDER BY id ASC`, klausurID)
 	if err != nil {
 		return nil, err
 	}
@@ -177,6 +177,11 @@ func hasSubmitted(db *sql.DB, klausurID, userID int64) (bool, error) {
 	var n int
 	err := db.QueryRow(`SELECT COUNT(*) FROM abgegeben WHERE klausur_id = ? AND user_id = ?`, klausurID, userID).Scan(&n)
 	return n > 0, err
+}
+
+func deleteKlausur(db *sql.DB, id int64) error {
+	_, err := db.Exec(`DELETE FROM klausuren WHERE id = ?`, id)
+	return err
 }
 
 func submitPunkte(db *sql.DB, klausurID, userID int64, points float64) error {
