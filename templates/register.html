@@ -1,0 +1,17 @@
+{{define "title"}}Registrieren{{end}}
+{{define "content"}}
+<div class="card narrow">
+    <h1>Registrieren</h1>
+    {{if .Error}}<div class="alert alert-error">{{.Error}}</div>{{end}}
+    <form method="post" action="/register" class="stack">
+        <label>Username
+            <input type="text" name="username" minlength="3" maxlength="32" autocomplete="username" required>
+        </label>
+        <label>Passwort
+            <input type="password" name="password" minlength="6" autocomplete="new-password" required>
+        </label>
+        <button class="btn btn-accent" type="submit">Account erstellen</button>
+    </form>
+    <p class="muted">Schon registriert? <a href="/login">Login</a></p>
+</div>
+{{end}}

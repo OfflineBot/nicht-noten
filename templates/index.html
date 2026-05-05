@@ -1,0 +1,35 @@
+{{define "title"}}Klausuren{{end}}
+{{define "content"}}
+<div class="header-row">
+    <h1>Klausuren</h1>
+    <a href="/klausur/new" class="btn btn-accent">+ Neue Klausur</a>
+</div>
+{{if not .Klausuren}}
+    <p class="muted">Noch keine Klausuren. <a href="/klausur/new">Erstelle die erste.</a></p>
+{{else}}
+<div class="grid">
+    {{range .Klausuren}}
+        <a class="card klausur-card" href="/klausur/{{.ID}}">
+            <div class="klausur-head">
+                <h2>{{.Name}}</h2>
+                {{if .Submitted}}<span class="pill pill-ok">abgegeben</span>{{else}}<span class="pill">offen</span>{{end}}
+            </div>
+            <div class="klausur-meta">
+                <span>Max: {{fmtFloat .MaxPoints}}</span>
+                <span>·</span>
+                <span>{{.Count}} Abgaben</span>
+            </div>
+            {{if .HasStats}}
+                <div class="klausur-stats">
+                    <div class="big">{{fmtFloat .Average}}<span class="small"> / {{fmtFloat .MaxPoints}}</span></div>
+                    <div class="bar"><div class="bar-fill" style="width: {{fmtFloat .AveragePct}}%"></div></div>
+                    <div class="muted small">Ø {{fmtFloat .AveragePct}}%</div>
+                </div>
+            {{else}}
+                <div class="klausur-stats muted small">Statistiken ab 5 Abgaben ({{.Count}}/5)</div>
+            {{end}}
+        </a>
+    {{end}}
+</div>
+{{end}}
+{{end}}

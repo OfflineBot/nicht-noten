@@ -1,0 +1,19 @@
+{{define "title"}}Neue Klausur{{end}}
+{{define "content"}}
+<div class="card narrow">
+    <h1>Neue Klausur</h1>
+    {{if .Error}}<div class="alert alert-error">{{.Error}}</div>{{end}}
+    <form method="post" action="/klausur/new" class="stack">
+        <label>Name
+            <input type="text" name="name" maxlength="100" required placeholder="z. B. Mathe Klausur 1">
+        </label>
+        <label>Maximalpunkte
+            <input type="text" inputmode="decimal" name="max_points" required placeholder="z. B. 60">
+        </label>
+        <div class="row">
+            <a href="/" class="btn btn-ghost">Abbrechen</a>
+            <button class="btn btn-accent" type="submit">Erstellen</button>
+        </div>
+    </form>
+</div>
+{{end}}

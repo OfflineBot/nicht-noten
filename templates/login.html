@@ -1,0 +1,17 @@
+{{define "title"}}Login{{end}}
+{{define "content"}}
+<div class="card narrow">
+    <h1>Login</h1>
+    {{if .Error}}<div class="alert alert-error">{{.Error}}</div>{{end}}
+    <form method="post" action="/login" class="stack">
+        <label>Username
+            <input type="text" name="username" autocomplete="username" required>
+        </label>
+        <label>Passwort
+            <input type="password" name="password" autocomplete="current-password" required>
+        </label>
+        <button class="btn btn-accent" type="submit">Login</button>
+    </form>
+    <p class="muted">Noch keinen Account? <a href="/register">Registrieren</a></p>
+</div>
+{{end}}

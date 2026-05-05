@@ -1,0 +1,80 @@
+{{define "title"}}{{.Klausur.Name}}{{end}}
+{{define "content"}}
+<div class="header-row">
+    <div>
+        <a href="/" class="muted">← Zurück</a>
+        <h1>{{.Klausur.Name}}</h1>
+        <div class="muted">Max: {{fmtFloat .Klausur.MaxPoints}} Punkte · {{.Count}} Abgabe{{if ne .Count 1}}n{{end}}</div>
+    </div>
+    {{if .Submitted}}
+        <span class="pill pill-ok">du hast abgegeben</span>
+    {{else}}
+        <span class="pill">offen</span>
+    {{end}}
+</div>
+
+{{if .Error}}<div class="alert alert-error">{{.Error}}</div>{{end}}
+
+<div class="two-col">
+    <section class="card">
+        <h2>Deine Abgabe</h2>
+        {{if .Submitted}}
+            <p class="muted">Du hast deine Punkte bereits anonym abgegeben. Danke!</p>
+        {{else}}
+            <form method="post" action="/klausur/{{.Klausur.ID}}/submit" class="stack">
+                <label>Deine Punkte (von {{fmtFloat .Klausur.MaxPoints}})
+                    <input type="text" inputmode="decimal" name="points" required>
+                </label>
+                <button class="btn btn-accent" type="submit">Anonym abgeben</button>
+                <p class="muted small">Punkte werden anonym gespeichert. Es wird nur vermerkt, ob du abgegeben hast.</p>
+            </form>
+        {{end}}
+    </section>
+
+    <section class="card">
+        <h2>Statistiken</h2>
+        {{if not .MinReached}}
+            <p class="muted">Statistiken werden ab 5 Abgaben angezeigt. Aktuell: {{.Count}}/5.</p>
+        {{else}}
+            <div class="stats-grid">
+                <div class="stat">
+                    <div class="stat-label">Durchschnitt</div>
+                    <div class="stat-value">{{fmtFloat .Average}}</div>
+                    <div class="stat-sub">{{fmtFloat .AveragePct}}%</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-label">Median</div>
+                    <div class="stat-value">{{if .MedianPair}}{{fmtFloat (index .MedianPair 0)}} / {{fmtFloat (index .MedianPair 1)}}{{else}}{{fmtFloat .Median}}{{end}}</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-label">Min</div>
+                    <div class="stat-value">{{fmtFloat .Min}}</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-label">Max</div>
+                    <div class="stat-value">{{fmtFloat .Max}}</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-label">Stdabw.</div>
+                    <div class="stat-value">{{fmtFloat .StdDev}}</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-label">Abgaben</div>
+                    <div class="stat-value">{{.Count}}</div>
+                </div>
+            </div>
+
+            <h3>Verteilung</h3>
+            <div class="histogram">
+                {{range .Histogram}}
+                    <div class="histo-row">
+                        <div class="histo-label">{{.Label}}</div>
+                        <div class="histo-bar"><div class="histo-fill" style="width: {{fmtFloat .Pct}}%"></div></div>
+                        <div class="histo-count">{{.Count}}</div>
+                    </div>
+                {{end}}
+            </div>
+        {{end}}
+    </section>
+</div>
+{{end}}
