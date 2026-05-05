@@ -3,6 +3,7 @@ package main
 import (
 	"database/sql"
 	"errors"
+	"strings"
 	"time"
 
 	_ "modernc.org/sqlite"
@@ -55,12 +56,19 @@ func openDB(path string) (*sql.DB, error) {
 	CREATE TABLE IF NOT EXISTS abgegeben (
 		klausur_id INTEGER NOT NULL REFERENCES klausuren(id) ON DELETE CASCADE,
 		user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+		punkt_id INTEGER REFERENCES punkte(id) ON DELETE SET NULL,
 		submitted_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 		PRIMARY KEY (klausur_id, user_id)
 	);
 	CREATE INDEX IF NOT EXISTS idx_punkte_klausur ON punkte(klausur_id);
 	`
 	if _, err := db.Exec(schema); err != nil {
+		return nil, err
+	}
+	// Idempotent migration for existing DBs created before punkt_id existed.
+	// SQLite errors with "duplicate column name" if it's already there — ignore.
+	if _, err := db.Exec(`ALTER TABLE abgegeben ADD COLUMN punkt_id INTEGER REFERENCES punkte(id) ON DELETE SET NULL`); err != nil &&
+		!strings.Contains(err.Error(), "duplicate column") {
 		return nil, err
 	}
 	return db, nil
@@ -198,10 +206,67 @@ func submitPunkte(db *sql.DB, klausurID, userID int64, points float64) error {
 	if n > 0 {
 		return errors.New("bereits abgegeben")
 	}
-	if _, err := tx.Exec(`INSERT INTO punkte (klausur_id, points) VALUES (?, ?)`, klausurID, points); err != nil {
+	res, err := tx.Exec(`INSERT INTO punkte (klausur_id, points) VALUES (?, ?)`, klausurID, points)
+	if err != nil {
 		return err
 	}
-	if _, err := tx.Exec(`INSERT INTO abgegeben (klausur_id, user_id) VALUES (?, ?)`, klausurID, userID); err != nil {
+	punktID, err := res.LastInsertId()
+	if err != nil {
+		return err
+	}
+	if _, err := tx.Exec(`INSERT INTO abgegeben (klausur_id, user_id, punkt_id) VALUES (?, ?, ?)`, klausurID, userID, punktID); err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+
+// getUserSubmission returns the user's own points for a klausur.
+// `submitted` is true if the user has an abgegeben entry; `knowsValue` is
+// true when we can resolve the linked punkt (false for legacy rows where
+// punkt_id is NULL or the punkt was orphaned).
+func getUserSubmission(db *sql.DB, klausurID, userID int64) (points float64, submitted bool, knowsValue bool, err error) {
+	var pid sql.NullInt64
+	err = db.QueryRow(`SELECT punkt_id FROM abgegeben WHERE klausur_id = ? AND user_id = ?`, klausurID, userID).Scan(&pid)
+	if err == sql.ErrNoRows {
+		return 0, false, false, nil
+	}
+	if err != nil {
+		return 0, false, false, err
+	}
+	submitted = true
+	if !pid.Valid {
+		return 0, true, false, nil
+	}
+	if err := db.QueryRow(`SELECT points FROM punkte WHERE id = ?`, pid.Int64).Scan(&points); err != nil {
+		if err == sql.ErrNoRows {
+			return 0, true, false, nil
+		}
+		return 0, true, false, err
+	}
+	return points, true, true, nil
+}
+
+func withdrawSubmission(db *sql.DB, klausurID, userID int64) error {
+	tx, err := db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	var pid sql.NullInt64
+	err = tx.QueryRow(`SELECT punkt_id FROM abgegeben WHERE klausur_id = ? AND user_id = ?`, klausurID, userID).Scan(&pid)
+	if err == sql.ErrNoRows {
+		return errors.New("keine abgabe")
+	}
+	if err != nil {
+		return err
+	}
+	if pid.Valid {
+		if _, err := tx.Exec(`DELETE FROM punkte WHERE id = ?`, pid.Int64); err != nil {
+			return err
+		}
+	}
+	if _, err := tx.Exec(`DELETE FROM abgegeben WHERE klausur_id = ? AND user_id = ?`, klausurID, userID); err != nil {
 		return err
 	}
 	return tx.Commit()

@@ -95,6 +95,7 @@ func main() {
 	mux.HandleFunc("POST /klausur/new", app.requireAuth(app.handleKlausurCreate))
 	mux.HandleFunc("GET /klausur/{id}", app.requireAuth(app.handleKlausurShow))
 	mux.HandleFunc("POST /klausur/{id}/submit", app.requireAuth(app.handleKlausurSubmit))
+	mux.HandleFunc("POST /klausur/{id}/withdraw", app.requireAuth(app.handleKlausurWithdraw))
 	mux.HandleFunc("POST /klausur/{id}/delete", app.requireAuth(app.handleKlausurDelete))
 
 	log.Printf("listening on %s", addr)
@@ -363,14 +364,16 @@ func (a *App) handleKlausurShow(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	pts, _ := listPunkte(a.db, id)
-	submitted, _ := hasSubmitted(a.db, id, user.ID)
+	myPoints, submitted, hasMyPoints, _ := getUserSubmission(a.db, id, user.ID)
 
 	data := map[string]any{
-		"User":      user,
-		"Klausur":   k,
-		"Count":     len(pts),
-		"Submitted": submitted,
-		"MinReached": len(pts) >= 5,
+		"User":        user,
+		"Klausur":     k,
+		"Count":       len(pts),
+		"Submitted":   submitted,
+		"MyPoints":    myPoints,
+		"HasMyPoints": hasMyPoints,
+		"MinReached":  len(pts) >= 5,
 	}
 
 	if errMsg := r.URL.Query().Get("err"); errMsg != "" {
@@ -394,6 +397,25 @@ func (a *App) handleKlausurShow(w http.ResponseWriter, r *http.Request) {
 	}
 
 	a.render(w, "klausur.html", data)
+}
+
+func (a *App) handleKlausurWithdraw(w http.ResponseWriter, r *http.Request) {
+	user := userFrom(r)
+	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+	if _, err := getKlausur(a.db, id); err != nil {
+		http.NotFound(w, r)
+		return
+	}
+	target := "/klausur/" + strconv.FormatInt(id, 10)
+	if err := withdrawSubmission(a.db, id, user.ID); err != nil {
+		http.Redirect(w, r, target+"?err=Zur%C3%BCckziehen+fehlgeschlagen", http.StatusSeeOther)
+		return
+	}
+	http.Redirect(w, r, target, http.StatusSeeOther)
 }
 
 func (a *App) handleKlausurDelete(w http.ResponseWriter, r *http.Request) {

@@ -406,6 +406,25 @@ svg.freq .dot:hover {
     r: 5;
 }
 
+.my-score {
+    background: var(--base);
+    border: 1px solid var(--surface0);
+    border-radius: 8px;
+    padding: 0.85rem 1rem;
+    margin-bottom: 0.85rem;
+}
+.my-score-value {
+    font-size: 1.8rem;
+    font-weight: 600;
+    color: var(--green);
+    line-height: 1.1;
+}
+.my-score-max {
+    font-size: 1rem;
+    color: var(--subtext0);
+    font-weight: 400;
+}
+
 .danger-zone {
     margin-top: 1rem;
     border-color: rgba(243, 139, 168, 0.25);

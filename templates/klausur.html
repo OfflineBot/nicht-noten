@@ -19,14 +19,25 @@
     <section class="card">
         <h2>Deine Abgabe</h2>
         {{if .Submitted}}
-            <p class="muted">Du hast deine Punkte bereits anonym abgegeben. Danke!</p>
+            {{if .HasMyPoints}}
+                <div class="my-score">
+                    <div class="my-score-value">{{fmtFloat .MyPoints}}<span class="my-score-max"> / {{fmtFloat .Klausur.MaxPoints}}</span></div>
+                    <div class="muted small">deine Punktzahl</div>
+                </div>
+            {{else}}
+                <p class="muted">Du hast bereits abgegeben. Wert ist nicht mehr abrufbar (alte Daten).</p>
+            {{end}}
+            <form method="post" action="/klausur/{{.Klausur.ID}}/withdraw">
+                <button class="btn btn-ghost" type="submit">Abgabe zurückziehen</button>
+            </form>
+            <p class="muted small">Beim Zurückziehen wird deine Punktzahl aus der Statistik entfernt. Du kannst dann erneut abgeben — z. B. wenn du dich vertippt hast oder nicht mehr mitmachen willst.</p>
         {{else}}
             <form method="post" action="/klausur/{{.Klausur.ID}}/submit" class="stack">
                 <label>Deine Punkte (von {{fmtFloat .Klausur.MaxPoints}})
                     <input type="text" inputmode="decimal" name="points" required>
                 </label>
-                <button class="btn btn-accent" type="submit">Anonym abgeben</button>
-                <p class="muted small">Punkte werden anonym gespeichert. Es wird nur vermerkt, ob du abgegeben hast.</p>
+                <button class="btn btn-accent" type="submit">Abgeben</button>
+                <p class="muted small">Punktzahlen sind anonym in der Statistik. Du kannst deine Abgabe jederzeit zurückziehen oder ändern.</p>
             </form>
         {{end}}
     </section>
