@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Punkteschnitt">
+    <rect width="64" height="64" rx="12" fill="#181825"/>
+    <path d="M6 50 C 18 50, 22 14, 32 14 S 46 50, 58 50"
+          fill="none" stroke="#cba6f7" stroke-width="4"
+          stroke-linecap="round" stroke-linejoin="round"/>
+    <line x1="6" y1="50" x2="58" y2="50" stroke="#45475a" stroke-width="2" stroke-linecap="round"/>
+    <circle cx="32" cy="14" r="3" fill="#cba6f7"/>
+</svg>
